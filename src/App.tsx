@@ -1,127 +1,100 @@
+import { useMemo, useState } from "react";
 import "./styles.css";
+import { StoreProvider, useStore } from "./store/store";
+import ComponentInventory from "./components/ComponentInventory";
+import DispatchBoard from "./components/DispatchBoard";
+import MaterialDesk from "./components/MaterialDesk";
+import { blockReason, availableQty, occupiedByStock } from "./domain/rules";
 
-const project = {
-  "sourceNo": 8,
-  "id": "hxyfront-62013",
-  "port": 62013,
-  "title": "木结构榫卯构件测绘",
-  "domain": "古建木结构",
-  "prompt": "开发一个古建筑木结构榫卯构件测绘前端项目，测绘人员可以录入建筑名称、构件编号、木材种类、榫卯类型、截面尺寸、病害位置、变形情况和修缮建议。页面需要有构件清单、榫卯类型筛选、尺寸记录表、病害标记图和单栋建筑的构件关系视图。",
-  "palette": [
-    "#854d0e",
-    "#475569",
-    "#0f766e"
-  ],
-  "metrics": [
-    "构件数量",
-    "病害点",
-    "榫卯类型",
-    "待修缮"
-  ],
-  "filters": [
-    "燕尾榫",
-    "透榫",
-    "半榫",
-    "箍头榫"
-  ],
-  "fields": [
-    "建筑名称",
-    "构件编号",
-    "木材种类",
-    "榫卯类型",
-    "截面尺寸",
-    "修缮建议"
-  ],
-  "records": [
-    [
-      "梁架A-03",
-      "透榫",
-      "截面180x240mm",
-      "端部开裂"
-    ],
-    [
-      "柱网C-12",
-      "楠木",
-      "柱脚糟朽",
-      "建议局部墩接"
-    ],
-    [
-      "斗拱D-07",
-      "半榫",
-      "轻微变形",
-      "继续监测"
-    ]
-  ]
-};
+type Tab = "inventory" | "dispatch" | "material";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "inventory", label: "测绘构件清单" },
+  { key: "dispatch", label: "修缮派工队列" },
+  { key: "material", label: "木料领退台" },
+];
+
+function Metrics() {
+  const { state } = useStore();
+  const blocked = state.components.filter((c) => blockReason(c)).length;
+  const active = state.tasks.filter((t) => t.status === "active").length;
+  const reschedule = state.tasks.filter((t) => t.status === "reschedule").length;
+  const avail = state.stock.reduce((s, i) => s + availableQty(i, state.ledger), 0);
+  const occupied = state.stock.reduce((s, i) => s + occupiedByStock(state.ledger, i.id), 0);
+
+  const items: [string, string][] = [
+    ["测绘构件", String(state.components.length)],
+    ["阻塞待派工", String(blocked)],
+    ["工位占用 / 待重排", `${active} / ${reschedule}`],
+    ["木料可用（占用）", `${avail}（${occupied}）`],
+  ];
+  return (
+    <section className="metrics">
+      {items.map(([label, value]) => (
+        <article key={label}>
+          <small>{label}</small>
+          <strong>{value}</strong>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function Workbench() {
+  const { state, reset } = useStore();
+  const [tab, setTab] = useState<Tab>("dispatch");
+
+  const badge = useMemo<Record<Tab, number>>(
+    () => ({
+      inventory: state.components.length,
+      dispatch: state.tasks.filter((t) => t.status !== "done").length,
+      material: state.ledger.length,
+    }),
+    [state],
+  );
+
+  return (
+    <>
+      <nav className="tabs">
+        {TABS.map((t) => (
+          <button key={t.key} className={tab === t.key ? "on" : ""} onClick={() => setTab(t.key)}>
+            {t.label}
+            <span className="badge">{badge[t.key]}</span>
+          </button>
+        ))}
+        <button className="reset" onClick={() => confirm("恢复为演示数据？本地改动将清除。") && reset()}>
+          重置演示数据
+        </button>
+      </nav>
+
+      {tab === "inventory" && <ComponentInventory />}
+      {tab === "dispatch" && <DispatchBoard />}
+      {tab === "material" && <MaterialDesk />}
+
+      <footer className="consistency-foot">
+        构件清单 {state.components.length} · 未完工任务{" "}
+        {state.tasks.filter((t) => t.status !== "done").length} · 领退流水 {state.ledger.length} ·
+        可用木料 {state.stock.reduce((s, i) => s + availableQty(i, state.ledger), 0)} 根 —— 数据同源，刷新后库存统计一致
+      </footer>
+    </>
+  );
+}
 
 function App() {
   return (
-    <main className="app">
-      <section className="hero">
-        <p>{project.id} · 源提示词{project.sourceNo} · Port {project.port}</p>
-        <h1>{project.title}</h1>
-        <span>{project.prompt}</span>
-      </section>
-
-      <section className="metrics">
-        {project.metrics.map((metric: string, index: number) => (
-          <article key={metric}>
-            <small>{metric}</small>
-            <strong>{[28, 6, 14, 91][index] ?? 10}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section className="workspace">
-        <aside className="panel">
-          <h2>{project.domain}分类</h2>
-          <div className="chips">
-            {project.filters.map((item: string) => (
-              <button key={item}>{item}</button>
-            ))}
-          </div>
-        </aside>
-
-        <section className="panel form-panel">
-          <div className="heading">
-            <div>
-              <p>专业字段</p>
-              <h2>新增记录</h2>
-            </div>
-            <button className="primary">保存记录</button>
-          </div>
-          <div className="field-grid">
-            {project.fields.map((field: string) => (
-              <label key={field}>
-                <span>{field}</span>
-                <input placeholder={"填写" + field} />
-              </label>
-            ))}
-          </div>
+    <StoreProvider>
+      <main className="app">
+        <section className="hero">
+          <p>hxyfront-62013 · 源提示词8 · Port 62013</p>
+          <h1>木结构榫卯构件测绘 · 修缮派工与木料领退</h1>
+          <span>
+            业务规则（派工准入、工位排队、领退校验）、存储（任务/库存/台账单一数据源、本地持久化）与操作（清单/队列/领退台三区分载）分层承载。
+          </span>
         </section>
-      </section>
-
-      <section className="panel">
-        <div className="heading">
-          <div>
-            <p>近期记录</p>
-            <h2>工作台摘要</h2>
-          </div>
-          <button>导出CSV</button>
-        </div>
-        <div className="records">
-          {project.records.map((record: string[], index: number) => (
-            <article key={record.join("-")}>
-              <b>{String(index + 1).padStart(2, "0")}</b>
-              <div>
-                <h3>{record[0]}</h3>
-                <p>{record.slice(1).join(" · ")}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
+        <Metrics />
+        <Workbench />
+      </main>
+    </StoreProvider>
   );
 }
 

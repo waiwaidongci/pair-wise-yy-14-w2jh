@@ -1,0 +1,136 @@
+// ===== 初始演示数据 =====
+import type { State } from "../domain/types";
+
+const T = (h: string): number => Date.parse(`2026-09-22T${h}:00+08:00`);
+
+export const seedState: State = {
+  seq: 100,
+  workstations: [
+    { id: "ws-1", name: "修缮一号工位" },
+    { id: "ws-2", name: "修缮二号工位" },
+  ],
+  components: [
+    {
+      id: "c-1",
+      code: "梁架A-03",
+      building: "大雄宝殿",
+      woodSpecies: "楠木",
+      joineryType: "透榫",
+      section: { width: 180, height: 240 },
+      moisture: 12.4,
+      defects: [{ id: "d-1", location: "东端榫头", detail: "端部开裂长约 120mm", level: "severe", reviewed: true }],
+      suggestion: "局部剔补后加钢箍",
+      revision: 1,
+      updatedAt: T("08:10"),
+    },
+    {
+      id: "c-2",
+      code: "柱网C-12",
+      building: "大雄宝殿",
+      woodSpecies: "松木",
+      joineryType: "燕尾榫",
+      section: { width: 220, height: 220 },
+      moisture: 13.1,
+      defects: [{ id: "d-2", location: "柱脚", detail: "糟朽深度 35mm", level: "medium", reviewed: true }],
+      suggestion: "局部墩接，墩接高度 400mm",
+      revision: 1,
+      updatedAt: T("08:25"),
+    },
+    {
+      id: "c-3",
+      code: "斗拱D-07",
+      building: "观音阁",
+      woodSpecies: "榆木",
+      joineryType: "半榫",
+      section: { width: 90, height: 120 },
+      moisture: null, // 含水率缺失 -> 阻塞
+      defects: [{ id: "d-3", location: "拱身", detail: "轻微变形", level: "light", reviewed: true }],
+      suggestion: "继续监测",
+      revision: 1,
+      updatedAt: T("08:40"),
+    },
+    {
+      id: "c-4",
+      code: "额枋E-05",
+      building: "观音阁",
+      woodSpecies: "松木",
+      joineryType: "箍头榫",
+      section: { width: 160, height: 200 },
+      moisture: 11.8,
+      defects: [
+        { id: "d-4", location: "南侧箍头", detail: "榫肩虫蛀", level: "severe", reviewed: false }, // 未复核 -> 阻塞
+      ],
+      suggestion: "待复核后更换榫头",
+      revision: 1,
+      updatedAt: T("09:05"),
+    },
+    {
+      id: "c-5",
+      code: "檩条L-21",
+      building: "天王殿",
+      woodSpecies: "杉木",
+      joineryType: "透榫",
+      section: { width: 140, height: 180 },
+      moisture: 14.2,
+      defects: [{ id: "d-5", location: "跨中", detail: "顺纹裂缝", level: "medium", reviewed: true }],
+      suggestion: "灌缝加楔",
+      revision: 1,
+      updatedAt: T("09:20"),
+    },
+    {
+      id: "c-6",
+      code: "雀替Q-02",
+      building: "天王殿",
+      woodSpecies: "楠木",
+      joineryType: "半榫",
+      section: { width: 70, height: 110 },
+      moisture: 12.9,
+      defects: [],
+      suggestion: "清理防护",
+      revision: 1,
+      updatedAt: T("09:35"),
+    },
+  ],
+  stock: [
+    { id: "s-1", species: "楠木", section: { width: 210, height: 270 }, qty: 6 },
+    { id: "s-2", species: "松木", section: { width: 250, height: 250 }, qty: 4 },
+    { id: "s-3", species: "松木", section: { width: 180, height: 220 }, qty: 5 }, // 对 160x200 留量不足
+    { id: "s-4", species: "杉木", section: { width: 170, height: 210 }, qty: 3 },
+    { id: "s-5", species: "榆木", section: { width: 120, height: 150 }, qty: 2 },
+  ],
+  ledger: [
+    // 已开工任务 c-1 已领 1 根 s-1
+    { id: "l-1", taskId: "t-1", stockItemId: "s-1", kind: "issue", qty: 1, time: T("10:05") },
+  ],
+  tasks: [
+    {
+      id: "t-1",
+      building: "大雄宝殿",
+      componentId: "c-1",
+      revision: 1,
+      status: "active",
+      declaredAt: T("09:50"),
+      startedAt: T("10:05"),
+      workstationId: "ws-1",
+      rejectReason: null,
+      history: [
+        { time: T("09:50"), type: "declare", text: "申报派工（严重病害）" },
+        { time: T("09:50"), type: "queue", text: "复核通过，进入排队" },
+        { time: T("10:05"), type: "start", text: "领料楠木 210×270mm ×1 根，占用修缮一号工位开工" },
+      ],
+    },
+    {
+      id: "t-2",
+      building: "大雄宝殿",
+      componentId: "c-2",
+      revision: 1,
+      status: "queued",
+      declaredAt: T("10:10"),
+      startedAt: null,
+      workstationId: null,
+      rejectReason: null,
+      history: [{ time: T("10:10"), type: "declare", text: "申报派工（中等病害），进入排队" }],
+    },
+  ],
+  lastStockSync: Date.parse("2026-09-22T10:30:00+08:00"),
+};
